@@ -94,8 +94,8 @@ int protect_message_delayed(struct port *p, struct ptp_message *m, struct securi
 	}
 	
 	/* As per the standard, the ICV field is not considered when hashing */
-	// len = ntohs(m->header.messageLength) - sa->hash_len;
-	len = m->header.messageLength - sa->hash_len;
+	len = ntohs(m->header.messageLength) - sa->hash_len -42;
+	// len = m->header.messageLength - sa->hash_len;
 	append_icv(sa, (unsigned char *)m + len, (unsigned char *)m, len);
 
 	return 0;
@@ -148,6 +148,53 @@ int verify_icv(struct port *p, struct ptp_message *m, struct security_policy *po
 		pr_err("%s: wrong ICV attached to message (SPP (Immediate): %d)", p->log_name, policy->spp_immediate);
 		p->stats.invalidPA++;
 		return -1;
+	}
+	else {
+		pr_info("Immediate ICV verified successfully!");
+	}
+
+	/* ICV checks out - check seqnum next to mitigate replayability */
+	seq_invalid = check_seqnum(sa, m, p);
+
+	if (seq_invalid) {
+		pr_err("%s: seqnum did not advance!", p->log_name);
+		p->stats.invalidPA++;
+		return -1;
+	}
+
+	p->stats.validPA++;
+	return 0;
+}
+
+int verify_delayed_icv(struct port *p, struct ptp_message *m, struct security_policy *policy)
+{
+	struct security_association *sa;
+	int len, icv_invalid, seq_invalid;
+
+	/* only immediate processing currently supported */
+	if (policy->spp_delayed == SPP_NO_SECURITY) {
+		return 0;
+	}
+
+	sa = query_security_association(policy->spp_delayed, clock_get_sad(p->clock));
+	if (!sa) {
+		return -1;
+	}
+
+	/* As per the standard, the ICV field is not considered when hashing */
+	len = ntohs(m->header.messageLength) - sa->hash_len -42;
+
+	//pr_err("%d", len);
+
+	icv_invalid = check_icv(sa, (unsigned char *)m + len, (unsigned char *)m, len);
+
+	if (icv_invalid) {
+		pr_err("%s: wrong ICV attached to message (SPP (Delayed): %d)", p->log_name, policy->spp_delayed);
+		p->stats.invalidPA++;
+		return -1;
+	}
+	else{
+		pr_info("Delayed ICV verified successfully!");
 	}
 
 	/* ICV checks out - check seqnum next to mitigate replayability */

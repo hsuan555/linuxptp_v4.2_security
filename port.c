@@ -691,7 +691,7 @@ static int peer_prepare_and_send(struct port *p, struct ptp_message *msg,
 	if (p->protect_messages && policy && protect_message_delayed(p, msg, policy)) {
 		pr_err("%s: calculating ICV failed", p->log_name);
 	}
-	
+
 	if (p->protect_messages && policy && authentication_append_immediate(p, msg, policy)) {
 		pr_err("%s: append authentication TLV failed", p->log_name);
 	}
@@ -3006,6 +3006,12 @@ static enum fsm_event bc_event(struct port *p, int fd_index)
 		msg_put(msg);
 		return EV_NONE;
 	}
+
+	if (p->protect_messages && verify_delayed_icv(p, msg, policy)) {
+		pr_err("%s: error verifying ICV attached to message (type %d)", p->log_name, msg_type(msg));
+		msg_put(msg);
+		return EV_NONE;
+	}
 	//
 
 	err = msg_post_recv(msg, cnt);
@@ -3123,10 +3129,6 @@ int port_prepare_and_send(struct port *p, struct ptp_message *msg,
 		pr_err("%s: append authentication TLV failed", p->log_name);
 	}
 
-	if (p->protect_messages && policy && protect_message_delayed(p, msg, policy)) {
-		pr_err("%s: calculating ICV failed", p->log_name);
-	}
-
 	if (p->protect_messages && policy && authentication_append_immediate(p, msg, policy)) {
 		pr_err("%s: append authentication TLV failed", p->log_name);
 	}
@@ -3135,7 +3137,10 @@ int port_prepare_and_send(struct port *p, struct ptp_message *msg,
 		return -1;
 	}
 
-	// Update program content (v4.2.Security)
+	if (p->protect_messages && policy && protect_message_delayed(p, msg, policy)) {
+		pr_err("%s: calculating ICV failed", p->log_name);
+	}
+
 	/* if we appended a TLV, we have to add the ICV to it as the last step */
 	if (p->protect_messages && policy && protect_message(p, msg, policy)) {
 		pr_err("%s: calculating ICV failed", p->log_name);

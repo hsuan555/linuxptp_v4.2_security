@@ -394,6 +394,10 @@ int msg_post_recv(struct ptp_message *m, int cnt);
  */
 int msg_pre_send(struct ptp_message *m);
 
+void suffix_pre_send(struct ptp_message *msg);
+
+void msg_tlv_recycle(struct ptp_message *msg);
+
 /**
  * Print messages for debugging purposes.
  * @param type  Value of the messageType field as returned by @ref msg_type().

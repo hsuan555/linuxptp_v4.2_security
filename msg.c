@@ -161,7 +161,7 @@ static struct tlv_extra *msg_tlv_prepare(struct ptp_message *msg, int length)
 	return extra;
 }
 
-static void msg_tlv_recycle(struct ptp_message *msg)
+void msg_tlv_recycle(struct ptp_message *msg)
 {
 	struct tlv_extra *extra;
 
@@ -223,7 +223,7 @@ static int suffix_post_recv(struct ptp_message *msg, int len)
 	return suffix_len;
 }
 
-static void suffix_pre_send(struct ptp_message *msg)
+void suffix_pre_send(struct ptp_message *msg)
 {
 	struct tlv_extra *extra;
 	struct TLV *tlv;
